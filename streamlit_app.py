@@ -105,7 +105,7 @@ def to_excel_download_link(df):
 
 # Streamlit app
 st.title('AMeM CSV File Processor')
-
+st.subheader("Convert raw csv measurement file to stable rpm and torque average values")
 # File uploader
 uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
 
@@ -116,6 +116,10 @@ if uploaded_file is not None:
     # Display the raw data
     st.subheader("Raw Data")
     st.write(df.head())
+
+    # Show descriptive statistics of the data
+    st.subheader("Data Description")
+    st.write(df.describe())
 
     # Process the data
     try:
