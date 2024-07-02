@@ -5,10 +5,10 @@ from io import BytesIO
 
 # Function to process the DataFrame
 def process_data(df):
-    # Converting pickup_dt datatype to datetime
+    # Converting Date datatype to datetime
     df["Date (dd/mm/yyyy)"] = pd.to_datetime(df["Date (dd/mm/yyyy)"], errors='coerce')
 
-    # lock the things we need
+    # Lock the things we need
     columns_of_interest = [
         'Date (dd/mm/yyyy)', 'Time (hh:mm:ss:msec)', 'Actual_Speed_rpm (RPM)', 'Actual_Torque (Nm)', 
         'Actual_Power (kW)', 'PA DC_Voltage (V)', 'PA DC_Current (Amp)', 'PA DC_Active Power (Watt)', 
@@ -16,57 +16,48 @@ def process_data(df):
         'PA AC_Power Factor_SUM (PF)', 'Controller Efficiency', 'Motor Efficiency', 'System Efficiency'
     ]
     df = df.loc[:, columns_of_interest]
-    
+
     # Identifying float and non-float columns
     float_columns = df.select_dtypes(include='float64').columns.tolist()
     non_float_columns = df.select_dtypes(exclude='float64').columns.tolist()
 
-    # Define a function to create the desired groups based on 1% range
-    def get_within_percentage_groups(df, column, percentage=1, min_group_size=15):
-        threshold = percentage / 100
-        sorted_df = df.sort_values(by=column).reset_index(drop=True)
-        group_labels = []
+    def calculate_average_sequential(df, key_columns, percentage=1, min_group_size=15):
+        grouped_data = []
         current_group = []
-        start_value = sorted_df[column].iloc[0]
+        start_values = [None, None]
 
-        group_index = 0
-        for i, value in enumerate(sorted_df[column]):
-            if abs(value - start_value) <= threshold * start_value:
-                current_group.append(i)
+        for index, row in df.iterrows():
+            values = [row[key_col] for key_col in key_columns]
+            
+            if (start_values[0] is None or abs(values[0] - start_values[0]) <= (percentage / 100) * start_values[0]) and \
+               (start_values[1] is None or abs(values[1] - start_values[1]) <= (percentage / 100) * start_values[1]):
+                current_group.append(row)
+                if start_values[0] is None:
+                    start_values = values
             else:
                 if len(current_group) >= min_group_size:
-                    group_labels.extend([group_index] * len(current_group))
-                    group_index += 1
-                else:
-                    group_labels.extend([None] * len(current_group))
+                    # Calculate the average for the current group
+                    group_df = pd.DataFrame(current_group)
+                    averaged_data = group_df.mean(numeric_only=True)
+                    averaged_data = pd.concat([group_df.iloc[0][non_float_columns], averaged_data])
+                    grouped_data.append(averaged_data)
+                start_values = values
+                current_group = [row]
 
-                current_group = [i]
-                start_value = value
-
-        # Assign remaining items to the current group
         if len(current_group) >= min_group_size:
-            group_labels.extend([group_index] * len(current_group))
+            group_df = pd.DataFrame(current_group)
+            averaged_data = group_df.mean(numeric_only=True)
+            averaged_data = pd.concat([group_df.iloc[0][non_float_columns], averaged_data])
+            grouped_data.append(averaged_data)
+
+        if grouped_data:
+            return pd.DataFrame(grouped_data)
         else:
-            group_labels.extend([None] * len(current_group))
+            return pd.DataFrame(columns=columns_of_interest)
 
-        sorted_df['GroupLabel'] = group_labels
-        return sorted_df.dropna(subset=['GroupLabel'])
-    
-    # Group the DataFrame by the custom groups
-    test_column = 'Actual_Speed_rpm (RPM)'
-    df_with_groups = get_within_percentage_groups(df, test_column)
-    df_with_groups['GroupLabel'] = df_with_groups['GroupLabel'].astype(int)
-
-    # Define function to calculate group averages
-    def calculate_group_averages(df, group_column='GroupLabel', float_columns=float_columns, non_float_columns=non_float_columns):
-        grouped = df.groupby(group_column)
-        non_float_first_values = grouped[non_float_columns].first()
-        float_averages = grouped[float_columns].mean()
-        result = non_float_first_values.join(float_averages)
-        return result
-
-    # Calculate the result DataFrame
-    result_df = calculate_group_averages(df_with_groups)
+    # Calculate averages based on Actual_Speed_rpm (RPM) and Actual_Torque (Nm)
+    key_columns = ['Actual_Speed_rpm (RPM)', 'Actual_Torque (Nm)']
+    result_df = calculate_average_sequential(df, key_columns)
 
     # Round specific columns
     columns_to_round_0 = [
