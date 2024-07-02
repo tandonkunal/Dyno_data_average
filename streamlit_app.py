@@ -104,7 +104,7 @@ def to_excel_download_link(df):
     return processed_data
 
 # Streamlit app
-st.title('CSV File Processor')
+st.title('AMeM CSV File Processor')
 
 # File uploader
 uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
