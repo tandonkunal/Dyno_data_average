@@ -117,10 +117,6 @@ if uploaded_file is not None:
     st.subheader("Raw Data")
     st.write(df.head())
 
-    # Show descriptive statistics of the data
-    st.subheader("Data Description")
-    st.write(df.describe())
-
     # Process the data
     try:
         processed_df = process_data(df)
