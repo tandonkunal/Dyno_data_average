@@ -21,7 +21,7 @@ def process_data(df):
     float_columns = df.select_dtypes(include='float64').columns.tolist()
     non_float_columns = df.select_dtypes(exclude='float64').columns.tolist()
 
-    def calculate_average_sequential(df, key_columns, percentage=1, min_group_size=15):
+    def calculate_average_sequential(df, key_columns, percentage=2, min_group_size=5):
         grouped_data = []
         current_group = []
         start_values = [None, None]
